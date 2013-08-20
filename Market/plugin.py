@@ -38,14 +38,16 @@ from supybot import world
 
 import re
 import json
-import urllib2
 import time
 import traceback
 
-opener = urllib2.build_opener()
-opener.addheaders = [('User-agent', 'Mozilla/5.0 (X11; Linux x86_64; rv:22.0) Gecko/20100101 Firefox/22.0')]
-urlopen = opener.open
-
+#TBB headers
+headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; rv:17.0) Gecko/20100101 Firefox/17.0',
+        'Accept': 'en-us,en;'
+                  'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8 gzip,'
+                  'deflate'
+          }
 def getNonNegativeFloat(irc, msg, args, state, type='floating point number'):
     try:
         v = float(args[0])
@@ -84,8 +86,9 @@ class Market(callbacks.Plugin):
             self.mdepth = json.load(open('/tmp/mtgox.depth.json'))['return']
             return
         try:
-            if time.time() - self.lastdepthfetch > self.registryValue('fullDepthCachePeriod'): 
-                data = urlopen('http://data.mtgox.com/api/1/BTCUSD/depth/full').read()
+            if time.time() - self.lastdepthfetch > self.registryValue('fullDepthCachePeriod'):
+                data = utils.web.getUrl('http://data.mtgox.com/api/1/BTCUSD/depth/full',
+                        headers = headers)
                 self.mdepth = json.loads(data)
                 self.mdepth = self.mdepth['return']
                 self.mdepth['bids'].reverse() # bids are listed in ascending order
@@ -95,9 +98,11 @@ class Market(callbacks.Plugin):
 
     def _getMtgoxTicker(self, currency):
         if not world.testing or currency != 'USD':
-            json_data = urlopen("https://data.mtgox.com/api/2/BTC%s/money/ticker" % (currency.upper(),)).read()
+            json_data = utils.web.getUrl("https://data.mtgox.com/api/2/BTC%s/money/ticker" % 
+                (currency.upper(),), headers = headers)
             ticker = json.loads(json_data)
-            ftj = urlopen("http://data.mtgox.com/api/2/BTC%s/money/ticker_fast" % (currency.upper(),)).read()
+            ftj = utils.web.getUrl("http://data.mtgox.com/api/2/BTC%s/money/ticker_fast" %
+                (currency.upper(),), headers = headers)
             tf = json.loads(ftj)
             if ticker['result'] != 'error' and tf['result'] != 'error': # use fast ticker where available
                 ticker['data']['buy']['value'] = tf['data']['buy']['value']
@@ -122,7 +127,8 @@ class Market(callbacks.Plugin):
             pair = 'ltc_btc'
         else:
             pair = 'btc_%s' % (currency.lower(),)
-        json_data = urlopen("https://btc-e.com/api/2/%s/ticker" % (pair,)).read()
+        json_data = utils.web.getUrl("https://btc-e.com/api/2/%s/ticker" %
+                (pair,), headers = headers)
         ticker = json.loads(json_data)
         if ticker.has_key('error'):
             stdticker = {'error':ticker['error']}
@@ -147,7 +153,8 @@ class Market(callbacks.Plugin):
         return stdticker
 
     def _getBitstampTicker(self, currency):
-        json_data = urlopen("https://www.bitstamp.net/api/ticker/").read()
+        json_data = utils.web.getUrl('https://www.bitstamp.net/api/ticker/',
+                headers = headers)
         ticker = json.loads(json_data)
         if currency != 'USD':
             stdticker = {'error':'unsupported currency'}
@@ -166,9 +173,11 @@ class Market(callbacks.Plugin):
             pair = 'ltcbtc'
         else:
             pair = 'btc%s' % (currency.lower(),)
-        json_data = urlopen("https://bitfinex.com/api/v1/ticker/%s" % (pair,)).read()
+        json_data = utils.web.getUrl("https://bitfinex.com/api/v1/ticker/%s" %
+                (pair,), headers = headers)
         spotticker = json.loads(json_data)
-        json_data = urlopen("https://bitfinex.com/api/v1/today/%s" % (pair,)).read()
+        json_data = utils.web.getUrl("https://bitfinex.com/api/v1/today/%s" %
+                (pair,), headers = headers)
         dayticker = json.loads(json_data)
         if spotticker.has_key('message') or dayticker.has_key('message'):
             stdticker = {'error':spotticker.get('message') or dayticker.get('message')}
@@ -192,9 +201,12 @@ class Market(callbacks.Plugin):
         return stdticker
 
     def _getBtcdeTicker(self, currency):
-        json_data = urlopen("http://api.bitcoincharts.com/v1/markets.json").read()
+        json_data = utils.web.getUrl("http://api.bitcoincharts.com/v1/markets.json",
+                headers = headers)
+
         ticker = json.loads(json_data)
-        trades = urlopen('http://api.bitcoincharts.com/v1/trades.csv?symbol=btcdeEUR').readlines()
+        trades = utils.web.getUrl('http://api.bitcoincharts.com/v1/trades.csv?symbol=btcdeEUR',
+                headers = headers)
         last = float(trades[0].split(',')[1])
         if currency != 'EUR':
             stdticker = {'error':'unsupported currency'}
@@ -210,9 +222,13 @@ class Market(callbacks.Plugin):
         return stdticker
 
     def _getCbxTicker(self, currency):
-        json_data = urlopen("http://api.bitcoincharts.com/v1/markets.json").read()
+        json_data = utils.web.getUrl("http://api.bitcoincharts.com/v1/markets.json",
+                headers = headers)
+
         ticker = json.loads(json_data)
-        cbx = json.loads(urlopen('http://campbx.com/api/xticker.php').read())
+        cbx = json.loads(utils.web.getUrl('http://campbx.com/api/xticker.php',
+            headers = headers))
+
         if currency != 'USD':
             stdticker = {'error':'unsupported currency'}
         else:
@@ -551,7 +567,8 @@ class Market(callbacks.Plugin):
         Retrieve mtgox order processing lag. If --raw option is specified
         only output the raw number of seconds. Otherwise, dress it up."""
         try:
-            json_data = urlopen("https://mtgox.com/api/2/money/order/lag").read()
+            json_data = utils.web.getUrl("https://mtgox.com/api/2/money/order/lag", headers = headers)
+
             lag = json.loads(json_data)
             lag_secs = lag['data']['lag_secs']
         except:

@@ -34,11 +34,17 @@ import supybot.plugins as plugins
 import supybot.ircutils as ircutils
 import supybot.callbacks as callbacks
 
-from urllib2 import urlopen
 import json
 import re
 import time
 import math
+# TBB headers
+headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; rv:17.0) Gecko/20100101 Firefox/17.0',
+        'Accept': 'en-us,en;'
+                  'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8 gzip,'
+                  'deflate'
+          }
 
 def getPositiveFloat(irc, msg, args, state, type='positiveFloat'):
     v = args[0]
@@ -65,7 +71,7 @@ class BitcoinData(callbacks.Plugin):
         urls = [''.join(t) for t in zip(sources, apipaths)]
         for url in urls:
             try:
-                data = urlopen(url, timeout=5).read()
+                data = utils.web.getUrl(url, headers = headers)
                 return data
             except:
                 continue
@@ -80,7 +86,8 @@ class BitcoinData(callbacks.Plugin):
         the time window for the average, and can be '24h', '7d', or '30d'.
         """
         try:
-            data = urlopen('http://bitcoincharts.com/t/weighted_prices.json').read()
+            data = utils.web.getUrl('http://bitcoincharts.com/t/weighted_prices.json',
+                    headers = headers)
             j = json.loads(data)
             curs = j.keys()
             curs.remove('timestamp')
@@ -117,7 +124,8 @@ class BitcoinData(callbacks.Plugin):
         
     def _rawblockbynum(self, blocknum):
         try:
-            data = urlopen('http://blockexplorer.com/b/%s' % blocknum, timeout=5).read()
+            data = utils.web.getUrl('http://blockexplorer.com/b/%s' % blocknum,
+                    headers = headers)
             m = re.search(r'href="(/rawblock/[0-9a-f]+)"', data)
             bbeurl = m.group(1)
         except:
@@ -283,7 +291,8 @@ class BitcoinData(callbacks.Plugin):
     
     def _nethash3d(self):
         try:
-            estimate = urlopen('http://bitcoin.sipa.be/speed-3D.txt').read()
+            estimate = utils.web.getUrl('http://bitcoin.sipa.be/speed-3D.txt',
+                    headers = headers)
             estimate = float(estimate)
         except:
             estimate = None
@@ -291,7 +300,8 @@ class BitcoinData(callbacks.Plugin):
     
     def _nethashsincelast(self):
         try:
-            estimate = urlopen('http://blockexplorer.com/q/estimate').read()
+            estimate = utils.web.getUrl('http://blockexplorer.com/q/estimate',
+                    headers = headers)
             estimate = float(estimate) / 139.696254564
         except:
             estimate = None
