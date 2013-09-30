@@ -44,9 +44,8 @@ import traceback
 #TBB headers
 headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; rv:17.0) Gecko/20100101 Firefox/17.0',
-        'Accept': 'en-us,en;'
-                  'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8 gzip,'
-                  'deflate'
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8 gzip,'
+                    'deflate en-us,en;q=0.5'
           }
 def getNonNegativeFloat(irc, msg, args, state, type='floating point number'):
     try:
