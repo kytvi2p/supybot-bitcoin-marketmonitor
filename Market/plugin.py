@@ -155,16 +155,18 @@ class Market(callbacks.Plugin):
         json_data = utils.web.getUrl('https://www.bitstamp.net/api/ticker/',
                 headers = headers)
         ticker = json.loads(json_data)
+        bcharts = json.loads(urlopen("http://api.bitcoincharts.com/v1/markets.json").read())
         if currency != 'USD':
             stdticker = {'error':'unsupported currency'}
         else:
+            bcharts = filter(lambda x: x['symbol'] == 'bitstampUSD', bcharts)[0]
             stdticker = {'bid': ticker['bid'],
                                 'ask': ticker['ask'],
                                 'last': ticker['last'],
                                 'vol': ticker['volume'],
                                 'low': ticker['low'],
                                 'high': ticker['high'],
-                                'avg': None}
+                                'avg': bcharts['avg']}
         return stdticker
 
     def _getBitfinexTicker(self, currency):
@@ -513,18 +515,18 @@ class Market(callbacks.Plugin):
     baratio = wrap(baratio)
 
     def ticker(self, irc, msg, args, optlist):
-        """[--bid|--ask|--last|--high|--low|--avg|--vol] [--currency XXX] [--market mtgox|btce|bitstamp]
+        """[--bid|--ask|--last|--high|--low|--avg|--vol] [--currency XXX] [--market <market>|all]
         
         Return pretty-printed ticker. Default market is Mtgox. 
         If one of the result options is given, returns only that numeric result
         (useful for nesting in calculations).
         
         If '--currency XXX' option  is given, returns ticker for that three-letter currency code.
-        It is up to you to make sure that the three letter code you enter is a valid currency
-        that is traded on mtgox. Default currency is USD.
+        It is up to you to make sure the code is a valid currency on your target market.
+        Default currency is USD.
         """
         supportedmarkets = {'mtgox':'MtGox','btce':'BTC-E', 'bitstamp':'Bitstamp',
-                'bitfinex':'Bitfinex', 'btcde':'Bitcoin.de', 'cbx':'CampBX'}
+                'bitfinex':'Bitfinex', 'btcde':'Bitcoin.de', 'cbx':'CampBX', 'all':'all'}
         od = dict(optlist)
         currency = od.pop('currency', 'USD')
         market = od.pop('market','mtgox').lower()
@@ -537,26 +539,45 @@ class Market(callbacks.Plugin):
         dispatch = {'mtgox':self._getMtgoxTicker, 'btce':self._getBtceTicker,
                 'bitstamp':self._getBitstampTicker, 'bitfinex': self._getBitfinexTicker,
                 'btcde':self._getBtcdeTicker, 'cbx':self._getCbxTicker}
-        try:
-            ticker = dispatch[market](currency)
-        except:
-            irc.error("Failure to retrieve ticker. Try again later.")
-            traceback.print_exc()
-            return
-        if ticker.has_key('error'):
-            irc.error('Error retrieving ticker. Details: %s' % (ticker['error'],))
-            return
+        if market != 'all':
+            try:
+                ticker = dispatch[market](currency)
+            except:
+                irc.error("Failure to retrieve ticker. Try again later.")
+                traceback.print_exc()
+                return
+            if ticker.has_key('error'):
+                irc.error('Error retrieving ticker. Details: %s' % (ticker['error'],))
+                return
 
-        if len(od) == 0:
-            irc.reply("%s BTC%s ticker | Best bid: %s, Best ask: %s, Bid-ask spread: %.5f, Last trade: %s, "
-                "24 hour volume: %s, 24 hour low: %s, 24 hour high: %s, 24 hour vwap: %s" % \
-                (supportedmarkets[market], currency, ticker['bid'], ticker['ask'],
-                float(ticker['ask']) - float(ticker['bid']), ticker['last'],
-                ticker['vol'], ticker['low'], ticker['high'],
-                ticker['avg']))
+            if len(od) == 0:
+                irc.reply("%s BTC%s ticker | Best bid: %s, Best ask: %s, Bid-ask spread: %.5f, Last trade: %s, "
+                    "24 hour volume: %s, 24 hour low: %s, 24 hour high: %s, 24 hour vwap: %s" % \
+                    (supportedmarkets[market], currency, ticker['bid'], ticker['ask'],
+                    float(ticker['ask']) - float(ticker['bid']), ticker['last'],
+                    ticker['vol'], ticker['low'], ticker['high'],
+                    ticker['avg']))
+            else:
+                key = od.keys()[0]
+                irc.reply(ticker[key])
         else:
-            key = od.keys()[0]
-            irc.reply(ticker[key])
+            if currency != 'USD':
+                irc.error('Only USD averages supported.')
+                return
+            response = ""
+            sumvol = 0
+            sumprc = 0
+            for mkt in ['mtgox','bitstamp','btce','bitfinex','cbx']:
+                try:
+                    tck = dispatch[mkt](currency)
+                    response += "%s BTCUSD last: %s, vol: %s | " % \
+                            (supportedmarkets[mkt], tck['last'], tck['vol'])
+                except:
+                    continue # we'll just skip this one then
+                sumvol += float(tck['vol'])
+                sumprc += float(tck['vol']) * float(tck['last'])
+            response += "Volume-weighted last average: %s" % (sumprc/sumvol,)
+            irc.reply(response)
     ticker = wrap(ticker, [getopts({'bid': '','ask': '','last': '','high': '',
             'low': '', 'avg': '', 'vol': '', 'currency': 'currencyCode', 'market': 'something'})])
 
