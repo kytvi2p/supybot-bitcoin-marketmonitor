@@ -155,7 +155,7 @@ class Market(callbacks.Plugin):
         json_data = utils.web.getUrl('https://www.bitstamp.net/api/ticker/',
                 headers = headers)
         ticker = json.loads(json_data)
-        bcharts = json.loads(urlopen("http://api.bitcoincharts.com/v1/markets.json").read())
+        bcharts = json.loads(utils.web.getUrl("http://api.bitcoincharts.com/v1/markets.json"))
         if currency != 'USD':
             stdticker = {'error':'unsupported currency'}
         else:
