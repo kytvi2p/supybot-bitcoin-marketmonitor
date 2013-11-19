@@ -436,6 +436,7 @@ class GPG(callbacks.Plugin):
             return
         challenge = "freenode:#bitcoin-otc:" + hashlib.sha256(os.urandom(128)).hexdigest()[:-8]
         try:
+            data = None
             data = self.gpg.encrypt(challenge + '\n', keyid, always_trust=True)
             if data.status != "encryption ok":
                 raise ValueError, "problem encrypting otp"
@@ -445,8 +446,12 @@ class GPG(callbacks.Plugin):
             f.close()
         except Exception, e:
             irc.error("Problem creating encrypted OTP file.")
+            if 'stderr' in dir(data):
+                gpgerroroutput = data.stderr
+            else:
+                gpgerroroutput = None
             self.log.info("GPG eauth: key %s, otp creation %s, exception %s" % \
-                    (keyid, data.stderr, e,))
+                    (keyid, gpgerroroutput, e,))
             return
         request = {msg.prefix: {'nick':userdata[0][5],
                                 'expiry':time.time(), 'keyid':keyid,
@@ -904,7 +909,10 @@ class GPG(callbacks.Plugin):
                                 authinfo['fingerprint'],
                                 authinfo['bitcoinaddress'])
         except KeyError:
-            response += "not identified."
+            if irc.nested:
+                response = ""
+            else:
+                response += "not identified."
         irc.reply(response)
     ident = wrap(ident, [optional('something')])
 
