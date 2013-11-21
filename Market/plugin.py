@@ -95,7 +95,7 @@ class Market(callbacks.Plugin):
         except KeyError:
             pass
         queryurl = "http://query.yahooapis.com/v1/public/yql?q=select%%20*%%20from%%20yahoo.finance.xchange%%20where%%20pair=%%22%s%s%%22&env=store://datatables.org/alltableswithkeys&format=json"
-        yahoorate = utils.web.getUrl(queryurl % (cur1, cur2,))
+        yahoorate = utils.web.getUrl(queryurl % (cur1, cur2,), headers = headers)
         yahoorate = json.loads(yahoorate, parse_float=str, parse_int=str)
         rate = yahoorate['query']['results']['rate']['Rate']
         if float(rate) == 0:
@@ -130,18 +130,18 @@ class Market(callbacks.Plugin):
                 pass
             stdticker = {}
             try:
-                json_data = utils.web.getUrl("https://data.mtgox.com/api/2/BTC%s/money/ticker" % (currency.upper(),))
+                json_data = utils.web.getUrl("https://data.mtgox.com/api/2/BTC%s/money/ticker" % (currency.upper(),), headers = headers)
             except urllib2.HTTPError:
                 json_data = '{"result":"error"}'
             try:
-                ftj = utils.web.getUrl("http://data.mtgox.com/api/2/BTC%s/money/ticker_fast" % (currency.upper(),))
+                ftj = utils.web.getUrl("http://data.mtgox.com/api/2/BTC%s/money/ticker_fast" % (currency.upper(),), headers = headers)
             except urllib2.HTTPError:
                 ftj = '{"result":"error"}'
             ticker = json.loads(json_data)
             yahoorate = 1
             if ticker['result'] == 'error' and currency != 'USD':
                 # maybe currency just doesn't exist, so try USD and convert.
-                ticker = json.loads(utils.web.getUrl("https://data.mtgox.com/api/2/BTCUSD/money/ticker"))
+                ticker = json.loads(utils.web.getUrl("https://data.mtgox.com/api/2/BTCUSD/money/ticker", headers = headers))
                 try:
                     stdticker = {'warning':'using yahoo currency conversion'}
                     yahoorate = float(self._queryYahooRate('USD', currency))
@@ -184,7 +184,7 @@ class Market(callbacks.Plugin):
         yahoorate = 1
         if ticker.has_key('error'):
             # maybe we have unsupported currency
-            ticker = json.loads(urlopen("https://btc-e.com/api/2/btc_usd/ticker").read())
+            ticker = json.loads(utils.web.getUrl("https://btc-e.com/api/2/btc_usd/ticker", headers = headers))
             if ticker.has_key('error'):
                 stdticker = {'error':ticker['error']}
                 return stdticker
@@ -222,9 +222,9 @@ class Market(callbacks.Plugin):
         except KeyError:
             pass
         stdticker = {}
-        json_data = utils.web.getUrl("https://www.bitstamp.net/api/ticker/")
+        json_data = utils.web.getUrl("https://www.bitstamp.net/api/ticker/", headers = headers)
         ticker = json.loads(json_data)
-        bcharts = json.loads(utils.web.getUrl("http://api.bitcoincharts.com/v1/markets.json"))
+        bcharts = json.loads(utils.web.getUrl("http://api.bitcoincharts.com/v1/markets.json", headers = headers))
         yahoorate = 1
         if currency != 'USD':
             try:
@@ -255,9 +255,9 @@ class Market(callbacks.Plugin):
             pair = 'ltcbtc'
         else:
             pair = 'btc%s' % (currency.lower(),)
-        json_data = utils.web.getUrl("https://api.bitfinex.com/v1/ticker/%s" % (pair,))
+        json_data = utils.web.getUrl("https://api.bitfinex.com/v1/ticker/%s" % (pair,), headers = headers)
         spotticker = json.loads(json_data)
-        json_data = utils.web.getUrl("https://api.bitfinex.com/v1/today/%s" % (pair,))
+        json_data = utils.web.getUrl("https://api.bitfinex.com/v1/today/%s" % (pair,), headers = headers)
         dayticker = json.loads(json_data)
         if spotticker.has_key('message') or dayticker.has_key('message'):
             stdticker = {'error':spotticker.get('message') or dayticker.get('message')}
@@ -289,9 +289,9 @@ class Market(callbacks.Plugin):
         except KeyError:
             pass
         stdticker = {}
-        json_data = utils.web.getUrl("http://api.bitcoincharts.com/v1/markets.json")
+        json_data = utils.web.getUrl("http://api.bitcoincharts.com/v1/markets.json", headers = headers)
         ticker = json.loads(json_data)
-        trades = utils.web.getUrlFd('http://api.bitcoincharts.com/v1/trades.csv?symbol=btcdeEUR')
+        trades = utils.web.getUrlFd('http://api.bitcoincharts.com/v1/trades.csv?symbol=btcdeEUR', headers = headers)
         last = float(trades[-1].split(',')[1])
         yahoorate = 1
         if currency != 'EUR':
@@ -320,9 +320,9 @@ class Market(callbacks.Plugin):
         except KeyError:
             pass
         stdticker = {}
-        json_data = utils.web.getUrl("http://api.bitcoincharts.com/v1/markets.json")
+        json_data = utils.web.getUrl("http://api.bitcoincharts.com/v1/markets.json", headers = headers)
         ticker = json.loads(json_data)
-        cbx = json.loads(utils.web.getUrl('http://campbx.com/api/xticker.php'))
+        cbx = json.loads(utils.web.getUrl('http://campbx.com/api/xticker.php', headers = headers))
         yahoorate = 1
         if currency != 'USD':
             stdticker = {'warning':'using yahoo currency conversion'}
@@ -351,11 +351,11 @@ class Market(callbacks.Plugin):
             pass
         stdticker = {}
         try:
-            json_data = utils.web.getUrl("http://api.bitcoincharts.com/v1/markets.json")
+            json_data = utils.web.getUrl("http://api.bitcoincharts.com/v1/markets.json", headers = headers)
             bcharts = json.loads(json_data)
         except:
             bcharts = [{'symbol':'btcnCNY','avg':None}]
-        btcchina = json.loads(utils.web.getUrl('https://data.btcchina.com/data/ticker'))['ticker']
+        btcchina = json.loads(utils.web.getUrl('https://data.btcchina.com/data/ticker', headers = headers))['ticker']
         yahoorate = 1
         if currency not in ['CNY', 'RMB']:
             stdticker = {'warning':'using yahoo currency conversion'}
@@ -387,7 +387,7 @@ class Market(callbacks.Plugin):
         except KeyError:
             pass
         try:
-            ticker = json.loads(utils.web.getUrl('https://api.bitcoinaverage.com/ticker/%s' % (currency,)))
+            ticker = json.loads(utils.web.getUrl('https://api.bitcoinaverage.com/ticker/%s' % (currency,), headers = headers))
         except urllib2.HTTPError:
             stdticker = {'error':'Unsupported currency.'}
             return stdticker
@@ -413,9 +413,9 @@ class Market(callbacks.Plugin):
             pass
         stdticker = {}
         try:
-            last = json.loads(utils.web.getUrl('https://coinbase.com/api/v1/prices/spot_rate'))['amount']
-            ask = json.loads(utils.web.getUrl('https://coinbase.com/api/v1/prices/buy'))['amount']
-            bid = json.loads(utils.web.getUrl('https://coinbase.com/api/v1/prices/sell'))['amount']
+            last = json.loads(utils.web.getUrl('https://coinbase.com/api/v1/prices/spot_rate', headers = headers))['amount']
+            ask = json.loads(utils.web.getUrl('https://coinbase.com/api/v1/prices/buy', headers = headers))['amount']
+            bid = json.loads(utils.web.getUrl('https://coinbase.com/api/v1/prices/sell', headers = headers))['amount']
         except:
             stdticker = {'error':'Problem retrieving data.'}
             return
