@@ -86,10 +86,13 @@ class MarketTestCase(PluginTestCase):
         self.assertError('obip blabla')
         self.assertRegexp('obip 100', 'weighted average price of BTC, .* coins up and down')
         self.assertRegexp('obip --market btsp 100', 'weighted average price of BTC, .* coins up and down')
+        self.assertError('obip 0')
+        self.assertError('obip -100')
 
     def testBaratio(self):
         self.assertError('baratio blabla')
         self.assertRegexp('baratio', 'Total bids.*Total asks')
-        self.assertRegexp('baratio --market bitstamp', 'Total bids.*Total asks')
+        self.assertRegexp('baratio --market bitstamp', 'Bitstamp | Total bids.*Total asks')
+        self.assertRegexp('baratio --market mtgox', 'Mtgox | Total bids.*Total asks')
 
 # vim:set shiftwidth=4 tabstop=4 expandtab textwidth=79:
